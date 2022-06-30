@@ -1,1 +1,1 @@
-# Melody Generation with recurrent neural networks
+# Melody Generation with a recurrent neural network
