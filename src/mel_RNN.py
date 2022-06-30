@@ -153,7 +153,7 @@ example_batch_loss = compute_loss(x, pred)
 
 # Optimization parameters:
 num_training_iterations = 1000  # Increase this to train longer
-batch_size = 4  # Experiment between 1 and 64
+batch_size = 1  # Experiment between 1 and 64
 seq_length = 100  # Experiment between 50 and 500
 learning_rate = 5e-3  # Experiment between 1e-5 and 1e-1
 
@@ -166,7 +166,7 @@ rnn_units = 1024  # Experiment between 1 and 2048
 checkpoint_dir = './training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, "my_ckpt")
 
-
+"""
 ### Define optimizer and training operation ###
 
 '''TODO: instantiate a new model for training using the `build_model`
@@ -231,11 +231,73 @@ for iter in tqdm(range(num_training_iterations)):
   if iter % 100 == 0:     
     model.save_weights(checkpoint_prefix)
 
-    
+"""    
     
 # Save the trained model and the weights
-model.save_weights(checkpoint_prefix)
+#model.save_weights(checkpoint_prefix)
+
+
+'''TODO: Rebuild the model using a batch_size=1'''
+model = build_model(vocab_size, embedding_dim, rnn_units, batch_size=1)
+
+# Restore the model weights for the last checkpoint after training
+model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
+model.build(tf.TensorShape([1, None]))
+
+model.summary()
 
 
 
+### Prediction of a generated song ###
+
+def generate_text(model, start_string, generation_length=1000):
+  # Evaluation step (generating ABC text using the learned RNN model)
+
+  '''TODO: convert the start string to numbers (vectorize)'''
+  input_eval = [char2idx[c] for c in start_string]
+  input_eval = tf.expand_dims(input_eval, 0)
+
+  # Empty string to store our results
+  text_generated = []
+
+  # Here batch size == 1
+  model.reset_states()
+  tqdm._instances.clear()
+
+  for i in tqdm(range(generation_length)):
+      '''TODO: evaluate the inputs and generate the next character predictions'''
+      predictions = model(input_eval)
+      
+      # Remove the batch dimension
+      predictions = tf.squeeze(predictions, 0)
+      
+      '''TODO: use a multinomial distribution to sample'''
+      predicted_id = tf.random.categorical(predictions, num_samples=1)[-1,0].numpy()
+      
+      # Pass the prediction along with the previous hidden state
+      #   as the next inputs to the model
+      input_eval = tf.expand_dims([predicted_id], 0)
+      
+      '''TODO: add the predicted character to the generated text!'''
+      # Hint: consider what format the prediction is in vs. the output
+      text_generated.append(idx2char[predicted_id])
+    
+  return (start_string + ''.join(text_generated))
+
+
+generated_text = generate_text(model, start_string="X", generation_length=1000) # TODO
+print(songs[0])
+print("\n\n" + generated_text)
+
+
+generated_songs = mdl.lab1.extract_song_snippet(generated_text)
+
+for i, song in enumerate(generated_songs): 
+  # Synthesize the waveform from a song
+  waveform = mdl.lab1.play_song(song)
+
+  # If its a valid song (correct syntax), lets play it! 
+  if waveform:
+    print("Generated song", i)
+    #ipythondisplay.display(waveform)
 
